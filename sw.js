@@ -1,4 +1,4 @@
-const CACHE_NAME = "wave-journal-v3";
+const CACHE_NAME = "wave-journal-v4";
 const ASSETS = [
   "./",
   "./manifest.json",
