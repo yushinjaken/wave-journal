@@ -52,19 +52,33 @@ function formatDate(dateStr) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-function WaveGraph({ entries }) {
-  const width = 600;
+const POINT_SPACING = 44;
+
+function WaveGraph({ entries, scrollable }) {
   const height = 120;
   const padding = { left: 32, right: 32, top: 20, bottom: 20 };
-  const innerW = width - padding.left - padding.right;
   const innerH = height - padding.top - padding.bottom;
+  const containerRef = useRef(null);
+
+  const width = scrollable
+    ? Math.max(600, padding.left + padding.right + (entries.length - 1) * POINT_SPACING)
+    : 600;
+  const innerW = width - padding.left - padding.right;
+
+  useEffect(() => {
+    if (scrollable && containerRef.current) {
+      containerRef.current.scrollLeft = containerRef.current.scrollWidth;
+    }
+  }, [scrollable, entries.length]);
 
   if (entries.length === 0) return null;
 
   const valueToIndex = { "-3": 0, "-2": 1, "-1": 2, "1": 3, "2": 4, "3": 5 };
 
   const points = entries.map((e, i) => {
-    const x = padding.left + (entries.length === 1 ? innerW / 2 : (i / (entries.length - 1)) * innerW);
+    const x = scrollable
+      ? padding.left + i * POINT_SPACING
+      : padding.left + (entries.length === 1 ? innerW / 2 : (i / (entries.length - 1)) * innerW);
     const idx = valueToIndex[String(e.value)] ?? 2;
     const y = padding.top + (idx / 5) * innerH;
     return { x, y, entry: e };
@@ -81,11 +95,13 @@ function WaveGraph({ entries }) {
 
   const centerY = padding.top + (2.5 / 5) * innerH;
 
-  return (
+  const svg = (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-      style={{ width: "100%", height: 120, display: "block" }}
+      preserveAspectRatio={scrollable ? undefined : "none"}
+      style={scrollable
+        ? { width, height, display: "block", flexShrink: 0 }
+        : { width: "100%", height: 120, display: "block" }}
     >
       <line
         x1={padding.left} y1={centerY}
@@ -114,6 +130,14 @@ function WaveGraph({ entries }) {
         </g>
       ))}
     </svg>
+  );
+
+  if (!scrollable) return svg;
+
+  return (
+    <div ref={containerRef} style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+      {svg}
+    </div>
   );
 }
 
@@ -160,11 +184,14 @@ function App() {
 
   const currentOption = selected !== null ? getStateOption(selected) : null;
 
-  const rangeDays = logRange === "week" ? 7 : 30;
-  const rangeStart = new Date(todayStr);
-  rangeStart.setDate(rangeStart.getDate() - (rangeDays - 1));
-  const rangeStartStr = rangeStart.toISOString().slice(0, 10);
-  const visibleEntries = entries.filter((e) => e.date >= rangeStartStr && e.date <= todayStr);
+  let visibleEntries = entries;
+  if (logRange === "week" || logRange === "month") {
+    const rangeDays = logRange === "week" ? 7 : 30;
+    const rangeStart = new Date(todayStr);
+    rangeStart.setDate(rangeStart.getDate() - (rangeDays - 1));
+    const rangeStartStr = rangeStart.toISOString().slice(0, 10);
+    visibleEntries = entries.filter((e) => e.date >= rangeStartStr && e.date <= todayStr);
+  }
 
   return (
     <div style={{
@@ -316,7 +343,7 @@ function App() {
         {view === "log" && (
           <div>
             <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-              {[["week", "一週間"], ["month", "一か月"]].map(([key, label]) => (
+              {[["week", "一週間"], ["month", "一か月"], ["all", "全期間"]].map(([key, label]) => (
                 <button
                   key={key}
                   onClick={() => setLogRange(key)}
@@ -341,7 +368,7 @@ function App() {
                   <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 12, letterSpacing: "0.1em" }}>
                     波の軌跡
                   </div>
-                  <WaveGraph entries={visibleEntries} />
+                  <WaveGraph entries={visibleEntries} scrollable={logRange === "all"} />
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -376,7 +403,7 @@ function App() {
               }}>
                 {entries.length === 0
                   ? <>まだ記録がない。<br />「記録する」タブから始めよう。</>
-                  : `この${logRange === "week" ? "一週間" : "一か月"}の記録はまだない。`}
+                  : `この${logRange === "week" ? "一週間" : logRange === "month" ? "一か月" : "期間"}の記録はまだない。`}
               </div>
             )}
           </div>
