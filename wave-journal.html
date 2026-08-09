@@ -43,6 +43,14 @@ const STATE_OPTIONS = [
   { value: 3, label: "感性の極", sub: "些事に夢中、目的からそれる", color: "#FB7185" },
 ];
 
+const RANGE_OPTIONS = [
+  { key: "week", label: "一週間", days: 7 },
+  { key: "month", label: "一か月", days: 30 },
+  { key: "3month", label: "3か月", days: 90 },
+  { key: "6month", label: "半年", days: 180 },
+  { key: "all", label: "全期間", days: null },
+];
+
 function getStateOption(value) {
   return STATE_OPTIONS.find((o) => o.value === value) || STATE_OPTIONS[2];
 }
@@ -222,10 +230,10 @@ function App() {
   const currentOption = selected !== null ? getStateOption(selected) : null;
 
   let visibleEntries = entries;
-  if (logRange === "week" || logRange === "month") {
-    const rangeDays = logRange === "week" ? 7 : 30;
+  const activeRange = RANGE_OPTIONS.find((r) => r.key === logRange);
+  if (activeRange && activeRange.days != null) {
     const rangeStart = new Date(todayStr);
-    rangeStart.setDate(rangeStart.getDate() - (rangeDays - 1));
+    rangeStart.setDate(rangeStart.getDate() - (activeRange.days - 1));
     const rangeStartStr = rangeStart.toISOString().slice(0, 10);
     visibleEntries = entries.filter((e) => e.date >= rangeStartStr && e.date <= todayStr);
   }
@@ -379,8 +387,8 @@ function App() {
 
         {view === "log" && (
           <div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-              {[["week", "一週間"], ["month", "一か月"], ["all", "全期間"]].map(([key, label]) => (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, rowGap: 8, marginBottom: 20 }}>
+              {RANGE_OPTIONS.map(({ key, label }) => (
                 <button
                   key={key}
                   onClick={() => setLogRange(key)}
@@ -440,7 +448,7 @@ function App() {
               }}>
                 {entries.length === 0
                   ? <>まだ記録がない。<br />「記録する」タブから始めよう。</>
-                  : `この${logRange === "week" ? "一週間" : logRange === "month" ? "一か月" : "期間"}の記録はまだない。`}
+                  : `この${activeRange ? activeRange.label : "期間"}の記録はまだない。`}
               </div>
             )}
 
